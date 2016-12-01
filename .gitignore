@@ -1,0 +1,5 @@
+auto-text/.google.json
+Gemfile.lock
+.env
+auto-text/numbers.json
+auto-text/body.txt
