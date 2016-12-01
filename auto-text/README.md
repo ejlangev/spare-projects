@@ -1,4 +1,4 @@
-# Auto Texting for Wolf PAC
+# Auto Texting
 
 ## Installation
 
