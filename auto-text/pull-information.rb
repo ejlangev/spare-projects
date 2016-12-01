@@ -64,7 +64,30 @@ end
 
 if options[:save]
   today = Date.today
+  filename = "#{today.year}-#{today.month}-#{today.day}.json"
+  full_filename = "/#{ENV['PHONE_NUMBER_S3_FOLDER']}/#{filename}"
+
+  PullInformation::S3.upload(
+    full_filename,
+    all_numbers,
+    access_key: ENV['AWS_ACCESS_KEY'],
+    secret_access_key: ENV['AWS_SECRET_ACCESS_KEY'],
+    bucket: ENV['PHONE_NUMBER_S3_BUCKET']
+  )
+
   filename = "#{today.year}-#{today.month}.json"
+  full_filename = "/#{ENV['PHONE_NUMBER_S3_FOLDER']}/#{filename}"
+
+  PullInformation::S3.upload(
+    full_filename,
+    all_numbers,
+    access_key: ENV['AWS_ACCESS_KEY'],
+    secret_access_key: ENV['AWS_SECRET_ACCESS_KEY'],
+    bucket: ENV['PHONE_NUMBER_S3_BUCKET']
+  )
+
+  tomorrow = Date.today + 1
+  filename = "#{tomorrow.year}-#{tomorrow.month}-#{tomorrow.day}.json"
   full_filename = "/#{ENV['PHONE_NUMBER_S3_FOLDER']}/#{filename}"
 
   PullInformation::S3.upload(
