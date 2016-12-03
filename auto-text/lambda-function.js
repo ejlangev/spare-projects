@@ -37,6 +37,10 @@ exports.handler = (event, context, callback) => {
   body = body.replace(/\+/g, ' ');
 
     lookupS3JsonFile(dailyFileName)
+        .catch(err => {
+          console.log(err);
+          return {};
+        })
         .then(dailyPhoneNumberMap => {
           return dailyPhoneNumberMap[numberToMatch] ||
             lookupS3JsonFile(monthlyFileName).then(m => m[numberToMatch]);
