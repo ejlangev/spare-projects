@@ -235,6 +235,7 @@
 
         return $.getJSON(houseDataPath)
           .then(function(geoJson) {
+            google.maps.event.clearListeners(map, 'click');
             map.data.forEach(function(feature) {
               map.data.remove(feature);
             })
