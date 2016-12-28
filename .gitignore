@@ -3,3 +3,4 @@ Gemfile.lock
 .env
 auto-text/numbers.json
 auto-text/body.txt
+.DS_Store

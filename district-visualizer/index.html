@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js" charset="utf-8"></script>
+    <style>
+      #map {
+        height: 100%;
+      }
+      #controls {
+        position: fixed;
+        left: 10px;
+        top: 50px;
+        width: 250px;
+        z-index: 10;
+        background-color: white;
+        padding: 5px;
+      }
+      .color-blotch {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        margin-right: 5px;
+      }
+      #rep_info {
+        display: none;
+      }
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      <div id="state_info">
+        <h3>State Progress Map</h3>
+        <div>
+          <label>
+            <strong>State: </strong>
+            <select id="state_select" onchange="updateMapOverlay()">
+              <option value="newyork">New York</option>
+            </select>
+          </label>
+        </div>
+        <div>
+          <label>
+            <strong>Chamber: </strong>
+            <select id="chamber_select" onchange="updateMapOverlay()">
+              <option value="senate">Senate</option>
+              <option value="assembly">Assembly</option>
+            </select>
+          </label>
+        </div>
+        <div>
+          <label>
+            <strong>Type: </strong>
+            <select id="info_type" onchange="updateMapOverlay()">
+              <option value="support">Support Level</option>
+              <option value="volunteer">Volunteer Distribution</option>
+            </select
+          </label>
+        </div>
+      </div>
+      <div id="support_info">
+        <p><strong>Votes: </strong> <span id="yes_votes"></span> / <span id="chamber_size"></span></p>
+        <div id="interest_key">
+          <div><strong>Interest color key</strong></div>
+        </div>
+        <div id="rep_info">
+          <p><strong>District Information</strong></p>
+          <p><strong>Name: </strong><span id="rep_name"></span></p>
+          <p><strong>District Number: </strong><span id="rep_district"></span></p>
+          <p><strong>Interest: </strong><span id="rep_level"></span></p>
+        </div>
+      </div>
+      <div id="volunteer_info" style="display:none">
+        <p><strong>District Information</strong></p>
+        <p><strong>Name: </strong><span id="vol_rep_name"></span></p>
+        <p><strong>District Number: </strong><span id="vol_rep_district"></span></p>
+        <p><strong>Volunteers in district: </strong><span id="num_volunteers"></span></p>
+      </div>
+    </div>
+    <div id="map"></div>
+    <script>
+      var map;
+      var DEFAULT_COLOR = '#666666';
+      var levelToColorMap = {
+        '1': '#9bbb59',
+        '2': '#d6e3bc',
+        '3': '#ff0000',
+        '4': '#cccccc',
+        '5': '#434343'
+      };
+      var levelToHumanizedMap = {
+        '1': 'Supportive',
+        '2': 'Convincible',
+        '3': 'Unsupportive',
+        '4': 'Unresponsive',
+        '5': 'Do not call'
+      }
+
+      Object.keys(levelToHumanizedMap).forEach(function(level) {
+        var color = levelToColorMap[level];
+        var levelStr = levelToHumanizedMap[level];
+        $('<div><span class="color-blotch" style="background-color:' + color + '"></span>' + levelStr + '</div>').appendTo('#interest_key');
+      });
+
+      function updateMapOverlay() {
+        var state = $('#state_select').val();
+        var chamber = $('#chamber_select').val();
+        var infoType = $('#info_type').val();
+        loadStateData(map, state, chamber, infoType);
+      }
+
+      function initMap() {
+        map = new google.maps.Map(document.getElementById('map'), {
+          zoom: 7,
+          center: new google.maps.LatLng(43.1497, -76.4384),
+          mapTypeId: 'roadmap'
+        });
+
+        updateMapOverlay();
+      }
+
+      function handleSupportData(map, housePreferences) {
+        var yesVotes = Object.keys(housePreferences).reduce(function(accum, key) {
+          return housePreferences[key] === 1 ? accum + 1 : accum;
+        }, 0);
+        var totalVotes = Object.keys(housePreferences).length;
+        $('#yes_votes').text(yesVotes);
+        $('#chamber_size').text(totalVotes);
+
+        map.data.setStyle(function(feature) {
+          var districtNum = String(parseInt(feature.f.DISTRICT, 10));
+          var interestLevel = housePreferences[districtNum];
+
+          return {
+            fillColor: levelToColorMap[String(interestLevel)] || DEFAULT_COLOR,
+            fillOpacity: 0.65,
+            strokeWeight: 1
+          }
+        });
+
+        map.data.addListener('click', function(event) {
+          var rep = event.feature.f.REP;
+          var districtNum = String(parseInt(event.feature.f.DISTRICT, 10));
+          var interestLevel = levelToHumanizedMap[housePreferences[districtNum]] || 'No Contact';
+          $('#rep_name').text(rep);
+          $('#rep_district').text(districtNum);
+          $('#rep_level').text(interestLevel);
+          $('#rep_info').show();
+        });
+
+        $('#support_info').show();
+      }
+
+      function handleVolunteerData(map, housePreferences) {
+        var values = Object.keys(housePreferences).map(function(k) { return housePreferences[k]; });
+        var maxSupporters = Math.log10(Math.max.apply(null, values));
+
+        map.data.setStyle(function(feature) {
+          var districtNum = String(parseInt(feature.f.DISTRICT, 10));
+          var supporters = (housePreferences[districtNum] || 0);
+          var color;
+
+          if (supporters === 0) {
+            color = DEFAULT_COLOR;
+          } else {
+            supporters = Math.log10(supporters);
+            var red = Math.floor((255 * supporters) / maxSupporters).toString(16);
+            var green = Math.floor((255 * (maxSupporters - supporters)) / maxSupporters).toString(16);
+            var color = '#' + ('00' + red).slice(-2) + ('00' + green).slice(-2) + '00';
+            console.log(color);
+          }
+
+          return {
+            fillColor: color,
+            fillOpacity: 0.55,
+            strokeWeight: 1
+          };
+        });
+
+        map.data.addListener('click', function(event) {
+          var rep = event.feature.f.REP;
+          var districtNum = String(parseInt(event.feature.f.DISTRICT, 10));
+          var numVolunteers = housePreferences[districtNum] || 0;
+
+          $('#vol_rep_name').text(rep);
+          $('#vol_rep_district').text(districtNum);
+          $('#num_volunteers').text(numVolunteers);
+          $('#volunteer_info').show();
+        });
+      }
+
+      function loadStateData(map, state, houseType, infoType) {
+        if (!map) {
+          return;
+        }
+
+        $('#support_info, #volunteer_info').hide();
+
+        state = state.toLowerCase().replace(/ /g, '');
+        houseType = houseType.toLowerCase();
+        var houseDataPath = [state, houseType + '.json'].join('/');
+        var additionalDataSuffix = infoType === 'support' ? '-preferences.json' : '-volunteers.json';
+        var housePreferenceDataPath = [state, houseType + additionalDataSuffix].join('/')
+
+        return $.getJSON(houseDataPath)
+          .then(function(geoJson) {
+            map.data.forEach(function(feature) {
+              map.data.remove(feature);
+            })
+            map.data.addGeoJson(geoJson);
+            return $.getJSON(housePreferenceDataPath);
+          })
+          .then(function(housePreferences) {
+            map.data.addListener('mouseover', function(event) {
+              map.data.revertStyle();
+              map.data.overrideStyle(event.feature, { strokeWeight: 2 })
+            });
+            map.data.addListener('mouseout', function(event) {
+              map.data.revertStyle();
+            });
+
+            if (infoType === 'support') {
+              handleSupportData(map, housePreferences);
+            } else {
+              handleVolunteerData(map, housePreferences);
+            }
+          });
+      }
+
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDvWa_oC5RO39TsPT0JWN5DwJsO8lXsahE&callback=initMap"
+  type="text/javascript"></script>
+  </body>
+</html>
