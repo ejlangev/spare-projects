@@ -74,6 +74,11 @@
           <p><strong>Interest: </strong><span id="rep_level"></span></p>
         </div>
       </div>
+      <div id="volunteer_key" style="display:none">
+        <div><strong>Volunteer color key</strong></div>
+        <div id="volunteer_entries">
+        </div>
+      </div>
       <div id="volunteer_info" style="display:none">
         <p><strong>District Information</strong></p>
         <p><strong>Name: </strong><span id="vol_rep_name"></span></p>
@@ -98,13 +103,15 @@
         '3': 'Unsupportive',
         '4': 'Unresponsive',
         '5': 'Do not call'
-      }
+      };
 
       Object.keys(levelToHumanizedMap).forEach(function(level) {
         var color = levelToColorMap[level];
         var levelStr = levelToHumanizedMap[level];
-        $('<div><span class="color-blotch" style="background-color:' + color + '"></span>' + levelStr + '</div>').appendTo('#interest_key');
+        $('<div><span class="color-blotch" style="opacity:0.65;background-color:' + color + '"></span>' + levelStr + '</div>').appendTo('#interest_key');
       });
+
+
 
       function updateMapOverlay() {
         var state = $('#state_select').val();
@@ -155,9 +162,17 @@
         $('#support_info').show();
       }
 
+      function calculateColor(n, max) {
+        n = Math.log10(n);
+        max = Math.log10(max);
+        var red = Math.floor((255 * n) / max).toString(16);
+        var green = Math.floor((255 * (max - n)) / max).toString(16);
+        return '#' + ('00' + red).slice(-2) + ('00' + green).slice(-2) + '00';
+      }
+
       function handleVolunteerData(map, housePreferences) {
         var values = Object.keys(housePreferences).map(function(k) { return housePreferences[k]; });
-        var maxSupporters = Math.log10(Math.max.apply(null, values));
+        var maxSupporters = Math.max.apply(null, values);
 
         map.data.setStyle(function(feature) {
           var districtNum = String(parseInt(feature.f.DISTRICT, 10));
@@ -167,11 +182,7 @@
           if (supporters === 0) {
             color = DEFAULT_COLOR;
           } else {
-            supporters = Math.log10(supporters);
-            var red = Math.floor((255 * supporters) / maxSupporters).toString(16);
-            var green = Math.floor((255 * (maxSupporters - supporters)) / maxSupporters).toString(16);
-            var color = '#' + ('00' + red).slice(-2) + ('00' + green).slice(-2) + '00';
-            console.log(color);
+            color = calculateColor(supporters, maxSupporters);
           }
 
           return {
@@ -191,6 +202,22 @@
           $('#num_volunteers').text(numVolunteers);
           $('#volunteer_info').show();
         });
+
+        var keyData = {
+          '#cccccc': '0',
+        };
+
+        keyData[calculateColor(1, maxSupporters)] = '1';
+        keyData[calculateColor(maxSupporters, maxSupporters)] = maxSupporters;
+
+        $('#volunteer_entries').empty();
+
+        Object.keys(keyData).forEach(function(color) {
+          var count = keyData[color];
+          $('<div><span class="color-blotch" style="opacity: 0.55;background-color:' + color + '"></span>' + count + ' volunteers </div>').appendTo('#volunteer_entries');
+        });
+
+        $('#volunteer_key').show()
       }
 
       function loadStateData(map, state, houseType, infoType) {
@@ -198,7 +225,7 @@
           return;
         }
 
-        $('#support_info, #volunteer_info').hide();
+        $('#support_info, #volunteer_info, #volunteer_key').hide();
 
         state = state.toLowerCase().replace(/ /g, '');
         houseType = houseType.toLowerCase();
